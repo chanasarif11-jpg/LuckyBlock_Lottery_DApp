@@ -1,5 +1,9 @@
-
+const APP_CONFIG = {
+    name: "LuckyVault",
+    tagline: "Your Luck, Your Fortune.",
 const CONTRACT_ADDRESS = "0x4c71c83b9BC22D8ecE2eD903AFb9310583669CDf";
+
+networkId: 11155111,
 
 const CONTRACT_ABI = [
   "function owner() view returns (address)",
@@ -19,264 +23,268 @@ const CONTRACT_ABI = [
 let provider;
 let signer;
 let contract;
-let account;
-let contractOwner;
+let userAddress;
+let currentTicketPrice = 0n;
 
-const $ = id => document.getElementById(id);
+const connectBtn = document.getElementById("connectBtn");
+const buyBtn = document.getElementById("buyBtn");
+const drawBtn = document.getElementById("drawBtn");
+const quantityInput = document.getElementById("quantity");
+const statusText = document.getElementById("status");
 
-function setMessage(message, error = false) {
-  $("lotteryMessage").textContent = message;
-  $("lotteryMessage").style.color = error ? "#ef8888" : "var(--muted)";
+function setStatus(message) {
+    statusText.textContent = message;
 }
 
-function validContractAddress() {
-  return ethers.isAddress(CONTRACT_ADDRESS);
+function formatETH(value) {
+    return Number(ethers.formatEther(value)).toFixed(5) + " ETH";
 }
 
 async function connectWallet() {
-  if (!window.ethereum) {
-    setMessage("MetaMask was not detected. Please install MetaMask.", true);
-    return;
-  }
+    try {
+        if (!window.ethereum) {
+            setStatus("MetaMask is not installed.");
+            return;
+        }
 
-  try {
-    provider = new ethers.BrowserProvider(window.ethereum);
+        connectBtn.disabled = true;
+        setStatus("Connecting wallet...");
 
-    await provider.send("eth_requestAccounts", []);
+        provider = new ethers.BrowserProvider(window.ethereum);
 
-    signer = await provider.getSigner();
-    account = await signer.getAddress();
+        await provider.send("eth_requestAccounts", []);
 
-    $("connectWallet").textContent =
-      `${account.slice(0, 6)}...${account.slice(-4)}`;
+        signer = await provider.getSigner();
+        userAddress = await signer.getAddress();
 
-    const network = await provider.getNetwork();
+        const network = await provider.getNetwork();
 
-    $("networkLabel").textContent =
-      `Chain ID: ${network.chainId.toString()}`;
+        if (Number(network.chainId) !== APP_CONFIG.networkId) {
+            setStatus("Please switch to Ethereum Sepolia.");
+            return;
+        }
 
-    if (!validContractAddress()) {
-      setMessage("Invalid contract address.", true);
-      return;
+        contract = new ethers.Contract(
+            APP_CONFIG.contractAddress,
+            APP_CONFIG.abi,
+            signer
+        );
+
+        connectBtn.textContent =
+            userAddress.slice(0, 6) + "..." + userAddress.slice(-4);
+
+        setStatus("Wallet connected successfully.");
+
+        await refreshData();
+
+    } catch (error) {
+        console.error(error);
+        setStatus(error.shortMessage || error.message);
+    } finally {
+        connectBtn.disabled = false;
     }
-
-    contract = new ethers.Contract(
-      CONTRACT_ADDRESS,
-      CONTRACT_ABI,
-      signer
-    );
-
-    await refreshData();
-
-    setMessage("Wallet connected successfully.");
-  } catch (error) {
-    setMessage(
-      error.shortMessage || error.message || "Wallet connection failed.",
-      true
-    );
-  }
 }
 
 async function refreshData() {
-  if (!contract || !account) return;
+    if (!contract || !userAddress) return;
 
-  try {
-    const [
-      pool,
-      count,
-      price,
-      tickets,
-      owner,
-      winner,
-      prize,
-      round
-    ] = await Promise.all([
-      contract.getPrizePool(),
-      contract.getPlayerCount(),
-      contract.ticketPrice(),
-      contract.getMyTickets(account),
-      contract.owner(),
-      contract.lastWinner(),
-      contract.lastPrize(),
-      contract.roundNumber()
-    ]);
+    try {
+        const [
+            prizePool,
+            playerCount,
+            ticketPrice,
+            myTickets,
+            owner,
+            winner,
+            prize,
+            round
+        ] = await Promise.all([
+            contract.getPrizePool(),
+            contract.getPlayerCount(),
+            contract.ticketPrice(),
+            contract.getMyTickets(userAddress),
+            contract.owner(),
+            contract.lastWinner(),
+            contract.lastPrize(),
+            contract.roundNumber()
+        ]);
 
-    contractOwner = owner;
+        currentTicketPrice = ticketPrice;
 
-    $("prizePool").textContent =
-      `${Number(ethers.formatEther(pool)).toFixed(4)} ETH`;
+        document.getElementById("prizePool").textContent =
+            formatETH(prizePool);
 
-    $("playerCount").textContent = count.toString();
+        document.getElementById("playerCount").textContent =
+            playerCount.toString();
 
-    $("ticketPrice").textContent =
-      `${ethers.formatEther(price)} ETH`;
+        document.getElementById("ticketPrice").textContent =
+            formatETH(ticketPrice);
 
-    $("myTickets").textContent = tickets.toString();
+        document.getElementById("myTickets").textContent =
+            myTickets.toString();
 
-    $("currentRound").textContent = round.toString();
+        document.getElementById("lastWinner").textContent =
+            winner === ethers.ZeroAddress ? "No winner yet" : winner;
 
-    $("winnerAddress").textContent =
-      winner === ethers.ZeroAddress ? "No winner yet" : winner;
+        document.getElementById("lastPrize").textContent =
+            formatETH(prize);
 
-    $("winnerPrize").textContent =
-      winner === ethers.ZeroAddress
-        ? "0 ETH"
-        : `${ethers.formatEther(prize)} ETH`;
+        document.getElementById("roundNumber").textContent =
+            round.toString();
 
-    const isOwner =
-      account.toLowerCase() === owner.toLowerCase();
+        const isOwner =
+            owner.toLowerCase() === userAddress.toLowerCase();
 
-    $("drawSection").style.display =
-      isOwner ? "block" : "none";
+        document.getElementById("ownerPanel").classList.toggle(
+            "hidden",
+            !isOwner
+        );
 
-    $("drawWinner").disabled =
-      !isOwner || count === 0n;
+        updateTotalPrice();
 
-    $("drawWinner").textContent =
-      count === 0n ? "No Tickets to Draw" : "Draw Winner";
-
-    updateTotal();
-
-  } catch (error) {
-    setMessage(
-      error.shortMessage || error.message ||
-      "Could not load lottery information.",
-      true
-    );
-  }
+    } catch (error) {
+        console.error(error);
+        setStatus("Unable to load contract information.");
+    }
 }
 
-function quantity() {
-  const value = Number($("ticketQuantity").value);
+function updateTotalPrice() {
+    const quantity = Number(quantityInput.value);
 
-  return Number.isInteger(value)
-    ? Math.min(20, Math.max(1, value))
-    : 1;
-}
+    if (
+        !Number.isInteger(quantity) ||
+        quantity < 1 ||
+        quantity > 20
+    ) {
+        document.getElementById("totalPrice").textContent =
+            "Invalid quantity";
+        return;
+    }
 
-function updateTotal() {
-  const q = quantity();
+    const total = currentTicketPrice * BigInt(quantity);
 
-  $("ticketQuantity").value = q;
-
-  const priceText =
-    $("ticketPrice").textContent.split(" ")[0];
-
-  let price = Number(priceText);
-
-  if (!Number.isFinite(price)) price = 0.001;
-
-  $("totalCost").textContent =
-    `${(price * q).toFixed(6)} ETH`;
+    document.getElementById("totalPrice").textContent =
+        formatETH(total);
 }
 
 async function buyTickets() {
-  if (!account || !contract) {
-    return setMessage("Connect your wallet first.", true);
-  }
+    try {
+        if (!contract) {
+            setStatus("Please connect your wallet first.");
+            return;
+        }
 
-  try {
-    const q = quantity();
-    const price = await contract.ticketPrice();
+        const quantity = Number(quantityInput.value);
 
-    const tx = await contract.buyTickets(q, {
-      value: price * BigInt(q)
-    });
+        if (
+            !Number.isInteger(quantity) ||
+            quantity < 1 ||
+            quantity > 20
+        ) {
+            setStatus("Select between 1 and 20 tickets.");
+            return;
+        }
 
-    setMessage("Purchase submitted. Waiting for confirmation...");
+        const totalPrice =
+            currentTicketPrice * BigInt(quantity);
 
-    await tx.wait();
+        buyBtn.disabled = true;
 
-    setMessage("Tickets purchased successfully!");
+        setStatus("Waiting for transaction confirmation...");
 
-    await refreshData();
+        const transaction = await contract.buyTickets(quantity, {
+            value: totalPrice
+        });
 
-  } catch (error) {
-    setMessage(
-      error.shortMessage || error.reason ||
-      error.message || "Ticket purchase failed.",
-      true
-    );
-  }
+        setStatus("Transaction submitted. Please wait...");
+
+        await transaction.wait();
+
+        setStatus("Tickets purchased successfully!");
+
+        await refreshData();
+
+    } catch (error) {
+        console.error(error);
+        setStatus(error.shortMessage || error.message);
+    } finally {
+        buyBtn.disabled = false;
+    }
 }
 
 async function drawWinner() {
-  if (!account || !contract) {
-    return setMessage("Connect your wallet first.", true);
-  }
+    try {
+        if (!contract) {
+            setStatus("Please connect your wallet first.");
+            return;
+        }
 
-  try {
-    const owner = await contract.owner();
+        const owner = await contract.owner();
+        const playerCount = await contract.getPlayerCount();
 
-    if (account.toLowerCase() !== owner.toLowerCase()) {
-      return setMessage(
-        "Only the contract owner can draw the winner.",
-        true
-      );
+        if (owner.toLowerCase() !== userAddress.toLowerCase()) {
+            setStatus("Only the owner can draw a winner.");
+            return;
+        }
+
+        if (playerCount === 0n) {
+            setStatus("There are no tickets in this round.");
+            return;
+        }
+
+        const confirmed = confirm(
+            "Are you sure you want to draw a winner?"
+        );
+
+        if (!confirmed) {
+            setStatus("Winner draw cancelled.");
+            return;
+        }
+
+        drawBtn.disabled = true;
+
+        setStatus("Drawing winner. Please wait...");
+
+        const transaction = await contract.drawWinner();
+
+        setStatus("Transaction submitted. Please wait...");
+
+        await transaction.wait();
+
+        setStatus("Winner selected successfully!");
+
+        await refreshData();
+
+    } catch (error) {
+        console.error(error);
+        setStatus(error.shortMessage || error.message);
+    } finally {
+        drawBtn.disabled = false;
     }
-
-    const count = await contract.getPlayerCount();
-
-    if (count === 0n) {
-      return setMessage("No tickets have been purchased yet.", true);
-    }
-
-    $("drawWinner").disabled = true;
-    $("drawWinner").textContent = "Drawing winner...";
-
-    setMessage("Drawing winner. Confirm the transaction in MetaMask...");
-
-    const tx = await contract.drawWinner();
-
-    setMessage("Transaction submitted. Waiting for confirmation...");
-
-    await tx.wait();
-
-    await refreshData();
-
-    setMessage("Winner successfully selected!");
-
-  } catch (error) {
-    setMessage(
-      error.shortMessage || error.reason ||
-      error.message || "Winner selection failed.",
-      true
-    );
-
-    await refreshData();
-  }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  $("connectWallet").addEventListener("click", connectWallet);
+// Event Listeners
 
-  $("buyTickets").addEventListener("click", buyTickets);
+connectBtn.addEventListener("click", connectWallet);
 
-  $("drawWinner").addEventListener("click", drawWinner);
+buyBtn.addEventListener("click", buyTickets);
 
-  $("refreshData").addEventListener("click", refreshData);
+drawBtn.addEventListener("click", drawWinner);
 
-  $("minusTicket").addEventListener("click", () => {
-    $("ticketQuantity").value = quantity() - 1;
-    updateTotal();
-  });
+quantityInput.addEventListener("input", updateTotalPrice);
 
-  $("plusTicket").addEventListener("click", () => {
-    $("ticketQuantity").value = quantity() + 1;
-    updateTotal();
-  });
+// MetaMask Account Changes
 
-  $("ticketQuantity").addEventListener("input", updateTotal);
-
-  if (window.ethereum) {
-    window.ethereum.on("accountsChanged", () => {
-      window.location.reload();
+if (window.ethereum) {
+    window.ethereum.on("accountsChanged", function() {
+        window.location.reload();
     });
 
-    window.ethereum.on("chainChanged", () => {
-      window.location.reload();
+    window.ethereum.on("chainChanged", function() {
+        window.location.reload();
     });
-  }
+}
 
-  updateTotal();
-});
+// Initial Setup
+
+updateTotalPrice();
