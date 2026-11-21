@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LuckyBlock | Blockchain Lottery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#"><span class="brand-mark">L</span><span>Lucky<span class="gold">Block</span></span></a>
+      <div class="side-label">MENU</div>
+      <a class="nav-link active" href="#overview">▦ <span>Overview</span></a>
+      <a class="nav-link" href="#lottery">◈ <span>Lottery</span></a>
+      <a class="nav-link" href="#how">☷ <span>How it works</span></a>
+      <div class="side-bottom">
+        <div class="network-card"><span class="live-dot"></span><span id="networkLabel">Wallet not connected</span></div>
+        <button class="nav-link" id="openSettings">⚙ <span>Appearance</span></button>
+        <div class="sidebar-foot">Transparent. Decentralized. Lucky.</div>
+      </div>
+    </aside>
+
+    <main class="main-content" id="overview">
+      <header class="topbar">
+        <div>
+          <div class="eyebrow">BLOCKCHAIN LOTTERY</div>
+          <h1>Good luck starts here.</h1>
+        </div>
+        <div class="top-actions">
+          <button class="icon-button" id="themeToggle" title="Toggle light/dark">☼</button>
+          <button class="wallet-button" id="connectWallet">Connect Wallet</button>
+        </div>
+      </header>
+
+      <section class="hero-card">
+        <div class="hero-copy">
+          <div class="pill"><span class="live-dot"></span> ON-CHAIN LOTTERY</div>
+          <h2>Your next big moment<br>could be <span class="gold">one ticket away.</span></h2>
+          <p>Join a transparent lottery powered by smart contracts. Every entry is recorded on the blockchain.</p>
+          <a class="primary-button" href="#lottery">Explore lottery <span>↗</span></a>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <div class="coin coin-back">Ξ</div>
+          <div class="coin coin-front">✦</div>
+          <div class="orbit orbit-one"></div>
+          <div class="orbit orbit-two"></div>
+          <div class="hero-glow"></div>
+        </div>
+      </section>
+
+      <section class="stats-grid">
+        <article class="stat-card">
+          <span class="stat-icon">◎</span>
+          <div class="stat-title">Current prize pool</div>
+          <div class="stat-value" id="prizePool">0.000 ETH</div>
+          <div class="stat-note">Total collected this round</div>
+        </article>
+        <article class="stat-card">
+          <span class="stat-icon">♙</span>
+          <div class="stat-title">Your tickets</div>
+          <div class="stat-value" id="myTickets">0</div>
+          <div class="stat-note">Tickets from connected wallet</div>
+        </article>
+        <article class="stat-card">
+          <span class="stat-icon">◷</span>
+          <div class="stat-title">Players entered</div>
+          <div class="stat-value" id="playerCount">0</div>
+          <div class="stat-note">Entries in current round</div>
+        </article>
+      </section>
+
+      <section class="content-grid" id="lottery">
+        <article class="panel lottery-panel">
+          <div class="section-heading">
+            <div>
+              <div class="eyebrow">JOIN THE DRAW</div>
+              <h3>Enter the lottery</h3>
+            </div>
+            <span class="status-tag">● Open for entries</span>
+          </div>
+
+          <div class="ticket-box">
+            <div>
+              <div class="ticket-label">TICKET PRICE</div>
+              <div class="ticket-price" id="ticketPrice">0.001 ETH</div>
+            </div>
+            <div class="ticket-symbol">✦</div>
+          </div>
+
+          <label class="field-label" for="ticketQuantity">Number of tickets</label>
+          <div class="quantity-row">
+            <button id="minusTicket" class="quantity-btn">−</button>
+            <input id="ticketQuantity" type="number" min="1" max="20" value="1">
+            <button id="plusTicket" class="quantity-btn">+</button>
+          </div>
+
+          <div class="total-row">
+            <span>Total cost</span>
+            <strong id="totalCost">0.001 ETH</strong>
+          </div>
+
+          <button class="primary-button full-button" id="buyTickets">Buy tickets <span>→</span></button>
+          <p class="muted small center" id="lotteryMessage">Connect your wallet to participate.</p>
+        </article>
+
+        <article class="panel info-panel">
+          <div class="eyebrow">FAIR & TRANSPARENT</div>
+          <h3>Luck, backed by code.</h3>
+          <p>Lottery actions are processed by the deployed smart contract. You can verify transactions on the blockchain explorer.</p>
+
+          <div class="info-line">
+            <span>◈</span>
+            <div><strong>On-chain entries</strong><small>Entries are recorded on the blockchain.</small></div>
+          </div>
+          <div class="info-line">
+            <span>⌁</span>
+            <div><strong>Wallet-controlled</strong><small>You approve every transaction.</small></div>
+          </div>
+          <div class="info-line">
+            <span>◇</span>
+            <div><strong>Open source contract</strong><small>Review the Solidity source before use.</small></div>
+          </div>
+          <button class="outline-button" id="refreshData">↻ Refresh lottery data</button>
+        </article>
+      </section>
+
+<section class="content-grid winner-grid">
+  <article class="panel">
+    <div class="eyebrow">LOTTERY RESULTS</div>
+    <h3>Latest Winner</h3>
+
+    <div class="info-line">
+      <span>🏆</span>
+      <div>
+        <strong>Winning wallet address</strong>
+        <small id="winnerAddress">No winner yet</small>
+      </div>
+    </div>
+
+    <div class="info-line">
+      <span>Ξ</span>
+      <div>
+        <strong>Winning prize</strong>
+        <small id="winnerPrize">0 ETH</small>
+      </div>
+    </div>
+
+    <div class="info-line">
+      <span>◈</span>
+      <div>
+        <strong>Current round</strong>
+        <small id="currentRound">1</small>
+      </div>
+    </div>
+  </article>
+
+  <article class="panel" id="drawSection" style="display:none;">
+    <div class="eyebrow">OWNER CONTROL</div>
+    <h3>Lottery Management</h3>
+
+    <p>
+      Only the wallet that deployed this smart contract
+      can select the lottery winner.
+    </p>
+
+    <button
+      class="primary-button full-button"
+      id="drawWinner"
+      type="button"
+      disabled
+    >
+      Draw Winner
+    </button>
+
+    <p class="muted small center">
+      The draw requires a MetaMask transaction.
+    </p>
+  </article>
+</section>
+
+
+      <section class="bottom-grid" id="how">
+        <article class="panel how-panel">
+          <div class="eyebrow">GET STARTED</div>
+          <h3>How it works</h3>
+          <div class="steps">
+            <div class="step">
+              <span>01</span>
+              <div><strong>Connect wallet</strong><p>Connect MetaMask to the supported network.</p></div>
+            </div>
+            <div class="step">
+              <span>02</span>
+              <div><strong>Buy a ticket</strong><p>Choose ticket quantity and approve the transaction.</p></div>
+            </div>
+            <div class="step">
+              <span>03</span>
+              <div><strong>Wait for the draw</strong><p>The contract owner can trigger the demo draw.</p></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel assistant-panel">
+          <div class="assistant-heading">
+            <div class="assistant-avatar">✦</div>
+            <div>
+              <div class="eyebrow">LUCKYBLOCK GUIDE</div>
+              <h3>Ask the assistant</h3>
+            </div>
+            <span class="online-tag">● Online</span>
+          </div>
+          <div class="chat-window" id="chatWindow">
+            <div class="chat-bubble bot">Hi! I’m the LuckyBlock guide. Ask me how the lottery works, how to connect your wallet, or how to buy a ticket.</div>
+          </div>
+          <form id="chatForm" class="chat-form">
+            <input id="chatInput" placeholder="Ask me anything..." autocomplete="off">
+            <button type="submit">↑</button>
+          </form>
+          <p class="muted tiny">Demo assistant. No external AI service or API key is connected.</p>
+        </article>
+      </section>
+
+      <footer>© 2026 LuckyBlock · Educational demonstration · Play responsibly</footer>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="settingsModal">
+    <section class="settings-modal">
+      <div class="modal-heading">
+        <div>
+          <div class="eyebrow">PERSONALIZE</div>
+          <h3>Appearance settings</h3>
+        </div>
+        <button class="icon-button" id="closeSettings">×</button>
+      </div>
+
+      <label class="field-label">Theme preset</label>
+      <div class="theme-options">
+        <button class="theme-option" data-theme="midnight">Midnight Gold</button>
+        <button class="theme-option" data-theme="ocean">Ocean Blue</button>
+        <button class="theme-option" data-theme="emerald">Emerald Green</button>
+        <button class="theme-option" data-theme="rose">Rose Pink</button>
+        <button class="theme-option" data-theme="purple">Royal Purple</button>
+        <button class="theme-option" data-theme="light">Light Luxury</button>
+      </div>
+
+      <label class="field-label" for="accentPicker">Custom accent color</label>
+      <input id="accentPicker" type="color" value="#d9ad5b">
+
+      <label class="field-label">Display mode</label>
+      <div class="mode-row">
+        <button id="darkMode">Dark mode</button>
+        <button id="lightMode">Light mode</button>
+      </div>
+
+      <label class="field-label">Dashboard spacing</label>
+      <div class="mode-row">
+        <button id="comfortableMode">Comfortable</button>
+        <button id="compactMode">Compact</button>
+      </div>
+
+      <button class="outline-button full-button" id="resetSettings">Reset all settings</button>
+    </section>
+  </div>
+
+  <script src="theme.js"></script>
+  <script src="ai-assistant.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
